@@ -37,11 +37,26 @@ router.get("/:code", async function (req, res, next) {
            FROM companies 
            WHERE code = $1`, [req.params.code]
     );
+    const company = result.rows[0]
 
     if(result.rows.length === 0){
       throw new ExpressError(`Company not found: ${req.params.code}`, 404)
     }
-    const company = result.rows[0]
+    const ciResult = await db.query(
+      `SELECT array_agg(i.industry) AS industry
+       FROM company_industry ci
+       JOIN industries i ON i.code = ci.industry_code
+       WHERE ci.comp_code = $1`
+       , [result.rows[0].code]
+    )
+
+    // If no industries, use empty arary
+    let industries = []
+    if(ciResult.rows[0].industry != null){
+      industries = ciResult.rows[0].industry
+    }
+    company.industries = industries
+
     return res.json({ company });
   }
 
